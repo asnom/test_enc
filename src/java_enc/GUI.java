@@ -28,6 +28,9 @@ import javax.swing.ListSelectionModel;
 import javax.swing.UIManager;
 import javax.swing.undo.UndoManager;
 
+import com.inet.jortho.FileUserDictionary;
+import com.inet.jortho.SpellChecker;
+
 @SuppressWarnings("serial")
 public class GUI extends JFrame implements MouseListener, KeyListener {
 
@@ -44,6 +47,11 @@ public class GUI extends JFrame implements MouseListener, KeyListener {
 		password = getPassword();
 		getPages(FileEncryptor.decryptFile(filename,password));
 		textPane.setText(pages.get(currentPage).content);
+		SpellChecker.setUserDictionaryProvider( new FileUserDictionary() );
+        
+        SpellChecker.registerDictionaries( null, null );
+
+        SpellChecker.register( textPane );
 		this.setTitle(pages.get(currentPage).date);
 		textPane.setSelectionStart(textPane.getText().length());
 		textPane.getDocument().addUndoableEditListener(undoManager);
