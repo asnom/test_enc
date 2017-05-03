@@ -6,6 +6,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -32,10 +34,9 @@ import com.inet.jortho.FileUserDictionary;
 import com.inet.jortho.SpellChecker;
 
 @SuppressWarnings("serial")
-public class GUI extends JFrame implements MouseListener, KeyListener {
+public class GUI extends JFrame implements MouseListener, KeyListener, WindowListener {
 
 	private static JTextPane textPane = new JTextPane();
-	private static UndoManager undoManager = new UndoManager();
 	private static String password = "";
 	private static String filename = "";
 	private static int currentPage = 0;
@@ -54,7 +55,7 @@ public class GUI extends JFrame implements MouseListener, KeyListener {
         SpellChecker.register( textPane );
 		this.setTitle(pages.get(currentPage).date);
 		textPane.setSelectionStart(textPane.getText().length());
-		textPane.getDocument().addUndoableEditListener(undoManager);
+		textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 		textPane.setFont(new Font("arial",Font.LAYOUT_LEFT_TO_RIGHT,40));
 		textPane.addKeyListener(this);
 		JScrollPane sp = new JScrollPane(textPane);
@@ -112,8 +113,9 @@ public class GUI extends JFrame implements MouseListener, KeyListener {
 		this.setJMenuBar(menuBar);
 		//this.pack();
 		setDefaultLookAndFeelDecorated(false);
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		setExtendedState(this.getExtendedState()|JFrame.MAXIMIZED_BOTH );
+		this.addWindowListener(this);
 		setVisible(true);
 	}
 	private static void getPages(String textin) {
@@ -137,7 +139,8 @@ public class GUI extends JFrame implements MouseListener, KeyListener {
 	private static String getPages() {
 		String output = "";
 		for (Page page : pages){
-			output = output + page.date + "===DATE===" + page.content + "===PG===";
+			output = output + page.date + "===DATE===" + page.econtent + "===PG===";
+			page.content = page.econtent;
 		}
 		return output;
 	}
@@ -221,9 +224,10 @@ public class GUI extends JFrame implements MouseListener, KeyListener {
 	public void mouseReleased(MouseEvent arg0) {
 		if (arg0.getSource() instanceof JMenuItem && ((JMenuItem)arg0.getSource()).getName().equals("save")) {
 			try {
-				pages.get(currentPage).content = textPane.getText();
+				pages.get(currentPage).econtent = textPane.getText();
 				FileEncryptor.encryptAndWriteText(getPages(),password,filename);
 				JOptionPane.showMessageDialog(null, "Save Successful!", "Save Confirmation", JOptionPane.INFORMATION_MESSAGE);
+				this.setTitle(this.getTitle().replace('*', ' ').trim());
 			} catch (Exception e) {
 				JOptionPane.showMessageDialog(null, "Saving Failed.", "Error: Save Error", JOptionPane.ERROR_MESSAGE);
 			}
@@ -232,12 +236,20 @@ public class GUI extends JFrame implements MouseListener, KeyListener {
 			textPane.setText(textPane.getText().substring(0, textPane.getSelectionStart()) + 
 					df.format(new Date()).toString() + "\n" + textPane.getText().substring(textPane.getSelectionStart()));
 		} else if (arg0.getSource() instanceof JMenuItem && ((JMenuItem)arg0.getSource()).getName().equals("page")) {
-			pages.get(currentPage).content = textPane.getText();
+			pages.get(currentPage).econtent = textPane.getText();
+			textPane.getDocument().removeUndoableEditListener(pages.get(currentPage).undoManager);
+			String mod = "";
+			if (this.getTitle().contains("*")) {
+				mod = "*";
+			}
 			Page newPage = new Page("");
 			boolean found = false;
 			for (int i = 0; i < pages.size(); i++) {
 				if (pages.get(i).date.equals(newPage.date)) {
 					currentPage = i;
+					this.setTitle(pages.get(currentPage).date + mod);
+					textPane.setText(pages.get(currentPage).econtent);
+					textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 					found = true;
 					break;
 				}
@@ -245,30 +257,54 @@ public class GUI extends JFrame implements MouseListener, KeyListener {
 			if (!found) {
 				pages.add(newPage);
 				currentPage = pages.size()-1;
-				this.setTitle(pages.get(currentPage).date);
+				this.setTitle(pages.get(currentPage).date + mod);
 				textPane.setText("");
+				textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 			}
 		} else if (arg0.getSource() instanceof JMenuItem && ((JMenuItem)arg0.getSource()).getName().equals("next")) {
-			pages.get(currentPage).content = textPane.getText();
+			pages.get(currentPage).econtent = textPane.getText();
+			textPane.getDocument().removeUndoableEditListener(pages.get(currentPage).undoManager);
+			String mod = "";
+			if (this.getTitle().contains("*")) {
+				mod = "*";
+			}
 			if (currentPage+1 < pages.size()) {
 				currentPage++;
 			}
-			this.setTitle(pages.get(currentPage).date);
-			textPane.setText(pages.get(currentPage).content);
+			this.setTitle(pages.get(currentPage).date + mod);
+			textPane.setText(pages.get(currentPage).econtent);
+			textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 		} else if (arg0.getSource() instanceof JMenuItem && ((JMenuItem)arg0.getSource()).getName().equals("prev")) {
-			pages.get(currentPage).content = textPane.getText();
+			pages.get(currentPage).econtent = textPane.getText();
+			textPane.getDocument().removeUndoableEditListener(pages.get(currentPage).undoManager);
+			String mod = "";
+			if (this.getTitle().contains("*")) {
+				mod = "*";
+			}
 			if (currentPage-1 >= 0) {
 				currentPage--;
 			}
-			this.setTitle(pages.get(currentPage).date);
-			textPane.setText(pages.get(currentPage).content);
+			this.setTitle(pages.get(currentPage).date + mod);
+			textPane.setText(pages.get(currentPage).econtent);
+			textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 		} else if (arg0.getSource() instanceof JMenuItem && ((JMenuItem)arg0.getSource()).getName().equals("last")) {
-			pages.get(currentPage).content = textPane.getText();
+			pages.get(currentPage).econtent = textPane.getText();
+			textPane.getDocument().removeUndoableEditListener(pages.get(currentPage).undoManager);
+			String mod = "";
+			if (this.getTitle().contains("*")) {
+				mod = "*";
+			}
 			currentPage=pages.size()-1;
-			this.setTitle(pages.get(currentPage).date);
-			textPane.setText(pages.get(currentPage).content);
+			this.setTitle(pages.get(currentPage).date + mod);
+			textPane.setText(pages.get(currentPage).econtent);
+			textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 		} else if (arg0.getSource() instanceof JMenuItem && ((JMenuItem)arg0.getSource()).getName().equals("search")) {
-			pages.get(currentPage).content = textPane.getText();
+			pages.get(currentPage).econtent = textPane.getText();
+			textPane.getDocument().removeUndoableEditListener(pages.get(currentPage).undoManager);
+			String mod = "";
+			if (this.getTitle().contains("*")) {
+				mod = "*";
+			}
 			String date = doSearch();
 			System.out.println(date);
 			for (int i = 0; i < pages.size(); i++) {
@@ -277,8 +313,9 @@ public class GUI extends JFrame implements MouseListener, KeyListener {
 					break;
 				}
 			}
-			this.setTitle(pages.get(currentPage).date);
-			textPane.setText(pages.get(currentPage).content);
+			this.setTitle(pages.get(currentPage).date + mod);
+			textPane.setText(pages.get(currentPage).econtent);
+			textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 		}
 	}
 	@Override
@@ -287,22 +324,76 @@ public class GUI extends JFrame implements MouseListener, KeyListener {
 	public void keyReleased(KeyEvent arg0) {}
 	@Override
 	public void keyTyped(KeyEvent arg0) {
-		System.out.println(arg0.getKeyChar()-KeyEvent.VK_CONTROL);
-		if (arg0.getKeyChar()-KeyEvent.VK_CONTROL == 9 && arg0.isControlDown() && undoManager.canUndo()){
-			undoManager.undo();
-		} else if (arg0.getKeyChar()-KeyEvent.VK_CONTROL == 8 && arg0.isControlDown() && undoManager.canRedo()){
-			undoManager.redo();
+	//	System.out.println(arg0.getKeyChar()-KeyEvent.VK_CONTROL);
+		String newkey = ""+arg0.getKeyChar();
+
+		if (!newkey.matches("[!-~ ]")) {
+			newkey="";
+		}
+		if ((textPane.getText()+newkey).equals(pages.get(currentPage).content) && !isEdited()) {
+			this.setTitle(this.getTitle().replace('*', ' ').trim());
+		} else if (!this.getTitle().contains("*")) {
+			this.setTitle(this.getTitle().replace('*', ' ').trim()+"*");
+		}
+		if (arg0.getKeyChar()-KeyEvent.VK_CONTROL == 9 && arg0.isControlDown() && pages.get(currentPage).undoManager.canUndo()){
+			pages.get(currentPage).undoManager.undo();
+			if ((textPane.getText()).equals(pages.get(currentPage).content) && !isEdited()) {
+				this.setTitle(this.getTitle().replace('*', ' ').trim());
+			} else if (!this.getTitle().contains("*")) {
+				this.setTitle(this.getTitle().replace('*', ' ').trim()+"*");
+			}
+		} else if (arg0.getKeyChar()-KeyEvent.VK_CONTROL == 8 && arg0.isControlDown() && pages.get(currentPage).undoManager.canRedo()){
+			pages.get(currentPage).undoManager.redo();
+			if ((textPane.getText()).equals(pages.get(currentPage).content) && !isEdited()) {
+				this.setTitle(this.getTitle().replace('*', ' ').trim());
+			} else if (!this.getTitle().contains("*")) {
+				this.setTitle(this.getTitle().replace('*', ' ').trim()+"*");
+			}
 		} else if (arg0.getKeyChar()-KeyEvent.VK_CONTROL == 2 && arg0.isControlDown()){
 			try {
-				pages.get(currentPage).content = textPane.getText();
+				pages.get(currentPage).econtent = textPane.getText();
 				FileEncryptor.encryptAndWriteText(getPages(),password,filename);
 				JOptionPane.showMessageDialog(null, "Save Successful!", "Save Confirmation", JOptionPane.INFORMATION_MESSAGE);
+				this.setTitle(this.getTitle().replace('*', ' ').trim());
 			} catch (Exception e) {
 				JOptionPane.showMessageDialog(null, "Saving Failed.", "Error: Save Error", JOptionPane.ERROR_MESSAGE);
 			}
 		}
 
 	}
+	@Override
+	public void windowActivated(WindowEvent arg0) {}
+	@Override
+	public void windowClosed(WindowEvent arg0) {
+       System.exit(0);
+	}
+	@Override
+	public void windowClosing(WindowEvent arg0) {
+		if (this.getTitle().contains("*")) {
+			if (JOptionPane.showConfirmDialog(null, "Unsaved Changes. Are you sure you want to exit?", 
+					"Unsaved Changes!", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) == 0) 
+				this.dispose();
+		} else {
+			this.dispose();
+		}
+	}
+	@Override
+	public void windowDeactivated(WindowEvent arg0) {}
+	@Override
+	public void windowDeiconified(WindowEvent arg0) {}
+	@Override
+	public void windowIconified(WindowEvent arg0) {}
+	@Override
+	public void windowOpened(WindowEvent arg0) {}
 
-
+    public boolean isEdited() {
+    	for (int i = 0; i < pages.size(); i++) {
+    		if (i == currentPage) {
+    			continue;
+    		} else if (pages.get(i).isModified()) {
+    			return true;
+    		}
+    	}
+    	return false;
+    }
 }
