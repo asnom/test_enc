@@ -12,6 +12,7 @@ import java.util.Formatter;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import javax.swing.JOptionPane;
 
 public class FileEncryptor {
 	private final static String ALGORITHM = "AES";
@@ -21,6 +22,10 @@ public class FileEncryptor {
 		Cipher c = Cipher.getInstance(ALGORITHM);
 		c.init(Cipher.DECRYPT_MODE, encKey);
 		File in = new File(filename);
+		                 //x  MB
+		if (in.length() > (5*1000*1000)) {
+			JOptionPane.showMessageDialog(null, "File size is greater than expected: "+in.length() +"\nThis indicates a corrupt character growing the file size unexpectedly." ,"Unexpected File Size Increase", JOptionPane.WARNING_MESSAGE);
+		}
 		String decryptedf = "";
 		if (in.exists()) {
 			try {
@@ -30,6 +35,7 @@ public class FileEncryptor {
 				decryptedf = new String(c.doFinal(read));
 				fi.close();
 			} catch (Exception e) {
+				e.printStackTrace();
 				System.out.println("Password incorrect.");
 				throw new WarningException();
 			} 

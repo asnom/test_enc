@@ -8,6 +8,9 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
+import java.io.BufferedWriter;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -73,6 +76,11 @@ public class GUI extends JFrame implements MouseListener, KeyListener, WindowLis
 		save.setName("save");
 		save.addMouseListener(this);
 		menu.add(save);
+		JMenuItem delete = new JMenuItem("Delete");
+		delete.setFont(new Font("arial",Font.LAYOUT_LEFT_TO_RIGHT,25));
+		delete.setName("delete");
+		delete.addMouseListener(this);
+		menu.add(delete);
 		JMenu insert = new JMenu("Insert");
 		insert.setFont(new Font("arial",Font.LAYOUT_LEFT_TO_RIGHT,30));
 		/*JMenuItem dateitem = new JMenuItem("Date");
@@ -143,6 +151,25 @@ public class GUI extends JFrame implements MouseListener, KeyListener, WindowLis
 			page.content = page.econtent;
 		}
 		return output;
+	}
+	private static void writePages() {
+		BufferedWriter bw = null;
+		FileWriter fw = null;
+		try {
+    		fw = new FileWriter("export");
+			bw = new BufferedWriter(fw);
+			for (Page page : pages){
+				String output = "";
+				output = output + page.date + "===DATE===" + page.econtent + "===PG===";
+				page.content = page.econtent;
+				bw.write(output);
+				bw.flush();
+			}
+			bw.close();
+			fw.close();
+		} catch (Exception e) {
+			System.out.println("Failed write");
+		} 
 	}
 	public static void setText(String text) {
 		textPane.setText(text);
@@ -231,6 +258,13 @@ public class GUI extends JFrame implements MouseListener, KeyListener, WindowLis
 			} catch (Exception e) {
 				JOptionPane.showMessageDialog(null, "Saving Failed.", "Error: Save Error", JOptionPane.ERROR_MESSAGE);
 			}
+		} else if (arg0.getSource() instanceof JMenuItem && ((JMenuItem)arg0.getSource()).getName().equals("delete")) {
+                System.out.println("Delete");
+                pages.get(currentPage).econtent = textPane.getText();
+                pages.remove(currentPage);
+                this.setTitle(pages.get(currentPage).date);
+				textPane.setText(pages.get(currentPage).econtent);
+				textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 		} else if (arg0.getSource() instanceof JMenuItem && ((JMenuItem)arg0.getSource()).getName().equals("date")) {
 			DateFormat df = new SimpleDateFormat("E, MMM dd yyyy");
 			textPane.setText(textPane.getText().substring(0, textPane.getSelectionStart()) + 
@@ -270,10 +304,10 @@ public class GUI extends JFrame implements MouseListener, KeyListener, WindowLis
 			}
 			if (currentPage+1 < pages.size()) {
 				currentPage++;
+				this.setTitle(pages.get(currentPage).date + mod);
+				textPane.setText(pages.get(currentPage).econtent);
+				textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 			}
-			this.setTitle(pages.get(currentPage).date + mod);
-			textPane.setText(pages.get(currentPage).econtent);
-			textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 		} else if (arg0.getSource() instanceof JMenuItem && ((JMenuItem)arg0.getSource()).getName().equals("prev")) {
 			pages.get(currentPage).econtent = textPane.getText();
 			textPane.getDocument().removeUndoableEditListener(pages.get(currentPage).undoManager);
@@ -283,10 +317,10 @@ public class GUI extends JFrame implements MouseListener, KeyListener, WindowLis
 			}
 			if (currentPage-1 >= 0) {
 				currentPage--;
+				this.setTitle(pages.get(currentPage).date + mod);
+				textPane.setText(pages.get(currentPage).econtent);
+				textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 			}
-			this.setTitle(pages.get(currentPage).date + mod);
-			textPane.setText(pages.get(currentPage).econtent);
-			textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
 		} else if (arg0.getSource() instanceof JMenuItem && ((JMenuItem)arg0.getSource()).getName().equals("last")) {
 			pages.get(currentPage).econtent = textPane.getText();
 			textPane.getDocument().removeUndoableEditListener(pages.get(currentPage).undoManager);
@@ -306,7 +340,7 @@ public class GUI extends JFrame implements MouseListener, KeyListener, WindowLis
 				mod = "*";
 			}
 			String date = doSearch();
-			System.out.println(date);
+			//System.out.println(date);
 			for (int i = 0; i < pages.size(); i++) {
 				if (pages.get(i).date.equals(date)) {
 					currentPage = i;
@@ -319,12 +353,43 @@ public class GUI extends JFrame implements MouseListener, KeyListener, WindowLis
 		}
 	}
 	@Override
-	public void keyPressed(KeyEvent arg0) {}
+	public void keyPressed(KeyEvent arg0) {
+		if (arg0.isAltDown() && arg0.getExtendedKeyCode() == KeyEvent.VK_RIGHT) {
+			//System.out.println("Go right");
+			pages.get(currentPage).econtent = textPane.getText();
+			textPane.getDocument().removeUndoableEditListener(pages.get(currentPage).undoManager);
+			String mod = "";
+			if (this.getTitle().contains("*")) {
+				mod = "*";
+			}
+			if (currentPage+1 < pages.size()) {
+				currentPage++;
+				this.setTitle(pages.get(currentPage).date + mod);
+				textPane.setText(pages.get(currentPage).econtent);
+				textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
+			}
+		}
+		if (arg0.isAltDown() && arg0.getExtendedKeyCode() == KeyEvent.VK_LEFT) {
+			//System.out.println("Go left");
+			pages.get(currentPage).econtent = textPane.getText();
+			textPane.getDocument().removeUndoableEditListener(pages.get(currentPage).undoManager);
+			String mod = "";
+			if (this.getTitle().contains("*")) {
+				mod = "*";
+			}
+			if (currentPage-1 >= 0) {
+				currentPage--;
+				this.setTitle(pages.get(currentPage).date + mod);
+				textPane.setText(pages.get(currentPage).econtent);
+				textPane.getDocument().addUndoableEditListener(pages.get(currentPage).undoManager);
+			}
+		}
+	}
 	@Override
 	public void keyReleased(KeyEvent arg0) {}
 	@Override
 	public void keyTyped(KeyEvent arg0) {
-	//	System.out.println(arg0.getKeyChar()-KeyEvent.VK_CONTROL);
+		//System.out.println(arg0.getKeyChar()-KeyEvent.VK_CONTROL);
 		String newkey = ""+arg0.getKeyChar();
 
 		if (!newkey.matches("[!-~ ]")) {
